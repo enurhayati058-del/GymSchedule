@@ -17,7 +17,7 @@ jobs:
       - name: Extract Android project
         run: |
           unzip -q GymSchedule-AndroidStudio.zip
-          echo "Project contents:"
+          echo "Project extracted successfully"
           find GymSchedule -maxdepth 3 -type f | sort
 
       - name: Setup Java 17
@@ -42,6 +42,41 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+
+      - name: Fix JVM target
+        working-directory: GymSchedule
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          file = Path("app/build.gradle.kts")
+          text = file.read_text()
+
+          old = 'android { namespace="com.example.gymschedule"; compileSdk=35'
+
+          new = '''android {
+              namespace="com.example.gymschedule"
+              compileSdk=35
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+
+              kotlinOptions {
+                  jvmTarget = "17"
+              }'''
+
+          if old not in text:
+              raise SystemExit("Expected Android configuration was not found")
+
+          text = text.replace(old, new, 1)
+          file.write_text(text)
+
+          print("JVM target fixed to Java 17")
+          print("--- Updated build.gradle.kts ---")
+          print(file.read_text())
+          PY
 
       - name: Build APK
         working-directory: GymSchedule
